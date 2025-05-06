@@ -1,5 +1,4 @@
 import pandas as pd
-import zipfile
 from datetime import datetime
 from io import BytesIO
 import streamlit as st
@@ -17,13 +16,25 @@ arch_precios = st.file_uploader("📂 Subir archivo PRECIOS", type=["xlsx"], key
 if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
 
     try:
-        # ---- Cargar datos ----
+        # ---- Cargar datos principales ----
         df_ordenes = pd.read_excel(arch_ordenes)  # primera hoja
         xl_stock = pd.ExcelFile(arch_stock)
-        df_bpcs = xl_stock.parse("BPCS")
-        df_wms = xl_stock.parse("WMS")
-        df_contenedor = xl_stock.parse("Contenedor")
 
+        # ---- Detectar hojas por nombre parcial ----
+        hojas = xl_stock.sheet_names
+
+        hoja_stock = next((h for h in hojas if h.lower().startswith("stock")), None)
+        hoja_wms = next((h for h in hojas if "wms" in h.lower()), None)
+        hoja_contenedor = "Contenedor pendiente"
+
+        if not hoja_stock or not hoja_wms or hoja_contenedor not in hojas:
+            raise ValueError("No se encontraron todas las hojas requeridas en el archivo STOCK.")
+
+        df_bpcs = xl_stock.parse(hoja_stock)
+        df_wms = xl_stock.parse(hoja_wms)
+        df_contenedor = xl_stock.parse(hoja_contenedor)
+
+        # ---- Cargar resto de archivos ----
         df_estado = pd.read_excel(arch_estado)
         df_responsable = pd.read_excel(arch_responsable, sheet_name="Empresa")
         df_precios = pd.read_excel(arch_precios)
@@ -42,9 +53,9 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df_ordenes.to_excel(writer, index=False, sheet_name="Ordenes")
-            df_bpcs.to_excel(writer, index=False, sheet_name="BPCS")
+            df_bpcs.to_excel(writer, index=False, sheet_name="Stock")
             df_wms.to_excel(writer, index=False, sheet_name="WMS")
-            df_contenedor.to_excel(writer, index=False, sheet_name="Contenedor")
+            df_contenedor.to_excel(writer, index=False, sheet_name="Contenedor pendiente")
             df_estado.to_excel(writer, index=False, sheet_name="Estado")
         output.seek(0)
 
