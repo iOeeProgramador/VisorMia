@@ -18,12 +18,10 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
 
     try:
         # ---- Cargar datos principales ----
-        df_ordenes = pd.read_excel(arch_ordenes)  # primera hoja
+        df_ordenes = pd.read_excel(arch_ordenes)
         xl_stock = pd.ExcelFile(arch_stock)
 
-        # ---- Detectar hojas por nombre parcial ----
         hojas = xl_stock.sheet_names
-
         hoja_stock = next((h for h in hojas if h.lower().startswith("stock")), None)
         hoja_wms = next((h for h in hojas if "wms" in h.lower()), None)
         hoja_contenedor = "Contenedor pendiente"
@@ -35,7 +33,6 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
         df_wms = xl_stock.parse(hoja_wms)
         df_contenedor = xl_stock.parse(hoja_contenedor)
 
-        # ---- Cargar resto de archivos ----
         df_estado = pd.read_excel(arch_estado)
         df_responsable = pd.read_excel(arch_responsable, sheet_name="Empresa")
 
@@ -44,17 +41,23 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
         except Exception as e:
             raise ValueError("❌ No se pudo leer el archivo PRECIOS.xlsx. Verifica que esté en formato Excel válido (.xlsx) y no esté dañado.") from e
 
-        # ---- Mapas de referencia ----
         mapa_responsables = df_responsable.set_index("HNAME")["RESP"].to_dict()
         df_precios["LPROD"] = df_precios["LPROD"].astype(str).str.strip().str.upper()
         mapa_precios = df_precios.set_index("LPROD")["VALOR"].to_dict()
 
-        # ---- Enriquecer datos de ordenes ----
         df_ordenes["RESP"] = df_ordenes["HNAME"].map(mapa_responsables)
         df_ordenes["LPROD"] = df_ordenes["LPROD"].astype(str).str.strip().str.upper()
         df_ordenes["VALOR"] = df_ordenes["LPROD"].map(mapa_precios)
 
-        # ---- Crear archivo Excel combinado general ----
+        # ---- Resumen por responsable ----
+        resumen = df_ordenes["RESP"].value_counts().reset_index()
+        resumen.columns = ["RESPONSABLE", "Total líneas"]
+        resumen["Porcentaje"] = (resumen["Total líneas"] / len(df_ordenes) * 100).round(2).astype(str) + " %"
+
+        st.subheader("📈 Resumen por Responsable")
+        st.dataframe(resumen, use_container_width=True)
+
+        # ---- Crear archivo combinado general ----
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df_ordenes.to_excel(writer, index=False, sheet_name="Ordenes")
@@ -74,10 +77,9 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
             options=columnas_disponibles,
             default=columnas_disponibles
         )
-
         st.dataframe(df_ordenes[columnas_seleccionadas], use_container_width=True)
 
-        # ---- Botón de descarga Excel general ----
+        # ---- Botón descarga general ----
         st.download_button(
             label="📥 Descargar archivo combinado (DatosCombinados.xlsx)",
             data=output,
@@ -85,7 +87,7 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        # ---- Crear archivos por responsable ----
+        # ---- Archivos por responsable (ZIP) ----
         zip_buffer = BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             for responsable, grupo in df_ordenes.groupby("RESP"):
@@ -99,7 +101,6 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
                 zip_file.writestr(nombre_archivo, file_buffer.read())
         zip_buffer.seek(0)
 
-        # ---- Botón para descargar archivos por responsable ----
         st.download_button(
             label="📦 Descargar archivos por Responsable (ZIP)",
             data=zip_buffer,
