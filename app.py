@@ -38,7 +38,11 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
         # ---- Cargar resto de archivos ----
         df_estado = pd.read_excel(arch_estado)
         df_responsable = pd.read_excel(arch_responsable, sheet_name="Empresa")
-        df_precios = pd.read_excel(arch_precios)
+
+        try:
+            df_precios = pd.read_excel(arch_precios)
+        except Exception as e:
+            raise ValueError("❌ No se pudo leer el archivo PRECIOS.xlsx. Verifica que esté en formato Excel válido (.xlsx) y no esté dañado.") from e
 
         # ---- Mapas de referencia ----
         mapa_responsables = df_responsable.set_index("HNAME")["RESP"].to_dict()
@@ -62,11 +66,9 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
 
         # ---- Vista previa interactiva ----
         st.success("✅ Archivos cargados correctamente. Vista previa de datos combinados:")
-
         st.write(f"🔢 Total de registros: {len(df_ordenes):,}")
 
         columnas_disponibles = df_ordenes.columns.tolist()
-
         columnas_seleccionadas = st.multiselect(
             "🧩 Selecciona las columnas que deseas visualizar:",
             options=columnas_disponibles,
