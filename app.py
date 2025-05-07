@@ -4,10 +4,13 @@ from io import BytesIO
 import zipfile
 import streamlit as st
 
-st.set_page_config(page_title="Combinador desde ZIP - Municipalidad", layout="wide")
-st.title("📦 Carga automática desde archivo ZIP (5 Excel incluidos)")
+# Configuración general
+st.set_page_config(page_title="VisorMia", layout="wide")
 
-# ---- Subida de archivo ZIP ----
+# Cabecera con fecha y hora
+st.markdown(f"### 🗂️ VisorMia | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+st.title("📦 Carga automática desde archivo ZIP (5 Excel incluidos)")
 archivo_zip = st.file_uploader("📂 Sube el archivo .ZIP que contenga los 5 Excel", type=["zip"])
 
 def buscar_archivo(nombres, clave):
@@ -16,23 +19,23 @@ def buscar_archivo(nombres, clave):
             return name
     return None
 
+# Botón de control para mostrar u ocultar la tabla completa
+mostrar_datos = st.session_state.get("mostrar_datos", False)
+
 if archivo_zip:
     try:
         with zipfile.ZipFile(archivo_zip) as zip_ref:
             lista_archivos = zip_ref.namelist()
 
-            # Buscar archivos por nombre parcial
             archivo_ordenes = buscar_archivo(lista_archivos, "orden")
             archivo_stock = buscar_archivo(lista_archivos, "stock")
             archivo_estado = buscar_archivo(lista_archivos, "estado")
             archivo_responsable = buscar_archivo(lista_archivos, "respons")
             archivo_precios = buscar_archivo(lista_archivos, "precio")
 
-            # Validar existencia
             if None in [archivo_ordenes, archivo_stock, archivo_estado, archivo_responsable, archivo_precios]:
                 raise ValueError("Faltan uno o más archivos requeridos en el ZIP. Verifica los nombres.")
 
-            # Leer archivos desde el ZIP
             df_ordenes = pd.read_excel(zip_ref.open(archivo_ordenes))
             xl_stock = pd.ExcelFile(zip_ref.open(archivo_stock))
             hojas = xl_stock.sheet_names
@@ -52,7 +55,6 @@ if archivo_zip:
             except Exception as e:
                 raise ValueError("❌ No se pudo leer el archivo PRECIOS.xlsx. Verifica que esté bien formado.") from e
 
-            # Procesamiento
             mapa_responsables = df_responsable.set_index("HNAME")["RESP"].to_dict()
             df_precios["LPROD"] = df_precios["LPROD"].astype(str).str.strip().str.upper()
             mapa_precios = df_precios.set_index("LPROD")["VALOR"].to_dict()
@@ -60,7 +62,7 @@ if archivo_zip:
             df_ordenes["LPROD"] = df_ordenes["LPROD"].astype(str).str.strip().str.upper()
             df_ordenes["VALOR"] = df_ordenes["LPROD"].map(mapa_precios)
 
-            # ---- Resumen por responsable con TOTAL ----
+            # Resumen con total
             resumen = df_ordenes["RESP"].value_counts().reset_index()
             resumen.columns = ["RESPONSABLE", "Total líneas"]
             resumen["Porcentaje"] = (resumen["Total líneas"] / len(df_ordenes) * 100).round(2)
@@ -75,7 +77,7 @@ if archivo_zip:
             st.subheader("📈 Resumen por Responsable")
             st.dataframe(resumen, use_container_width=True)
 
-            # ---- Crear archivo combinado general ----
+            # Botones de descarga
             output = BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 df_ordenes.to_excel(writer, index=False, sheet_name="Ordenes")
@@ -85,17 +87,6 @@ if archivo_zip:
                 df_estado.to_excel(writer, index=False, sheet_name="Estado")
             output.seek(0)
 
-            # ---- Vista previa interactiva ----
-            st.success("✅ ZIP cargado correctamente. Vista previa de datos combinados:")
-            st.write(f"🔢 Total de registros: {len(df_ordenes):,}")
-            columnas_disponibles = df_ordenes.columns.tolist()
-            columnas_seleccionadas = st.multiselect(
-                "🧩 Selecciona las columnas que deseas visualizar:",
-                options=columnas_disponibles,
-                default=columnas_disponibles
-            )
-            st.dataframe(df_ordenes[columnas_seleccionadas], use_container_width=True)
-
             st.download_button(
                 label="📥 Descargar archivo combinado (DatosCombinados.xlsx)",
                 data=output,
@@ -103,7 +94,7 @@ if archivo_zip:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-            # ---- Archivos por responsable (ZIP) ----
+            # ZIP por responsable
             zip_buffer = BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                 for responsable, grupo in df_ordenes.groupby("RESP"):
@@ -125,6 +116,24 @@ if archivo_zip:
             )
 
             st.info("💡 Puedes exportar la tabla visible a PDF usando Ctrl+P desde el navegador.")
+
+            # Mostrar/ocultar datos completos
+            if not mostrar_datos:
+                if st.button("📂 Mostrar Datos"):
+                    st.session_state["mostrar_datos"] = True
+                    st.rerun()
+            else:
+                st.subheader("📋 Detalle completo de órdenes")
+                columnas_disponibles = df_ordenes.columns.tolist()
+                columnas_seleccionadas = st.multiselect(
+                    "🧩 Selecciona columnas a visualizar:",
+                    options=columnas_disponibles,
+                    default=columnas_disponibles
+                )
+                st.dataframe(df_ordenes[columnas_seleccionadas], use_container_width=True)
+                if st.button("🔙 Volver"):
+                    st.session_state["mostrar_datos"] = False
+                    st.rerun()
 
     except Exception as e:
         st.error(f"❌ Error al procesar el ZIP: {e}")
