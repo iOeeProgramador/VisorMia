@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime
 from io import BytesIO
+import zipfile
 import streamlit as st
 
 st.set_page_config(page_title="Combinador de Excel - Municipalidad", layout="wide")
@@ -49,7 +50,7 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
         df_ordenes["LPROD"] = df_ordenes["LPROD"].astype(str).str.strip().str.upper()
         df_ordenes["VALOR"] = df_ordenes["LPROD"].map(mapa_precios)
 
-        # ---- Crear archivo Excel combinado ----
+        # ---- Crear archivo Excel combinado general ----
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df_ordenes.to_excel(writer, index=False, sheet_name="Ordenes")
@@ -74,12 +75,34 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
 
         st.dataframe(df_ordenes[columnas_seleccionadas], use_container_width=True)
 
-        # ---- Botón de descarga Excel ----
+        # ---- Botón de descarga Excel general ----
         st.download_button(
             label="📥 Descargar archivo combinado (DatosCombinados.xlsx)",
             data=output,
             file_name="DatosCombinados.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # ---- Crear archivos por responsable ----
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for responsable, grupo in df_ordenes.groupby("RESP"):
+                if pd.isna(responsable):
+                    continue
+                file_buffer = BytesIO()
+                with pd.ExcelWriter(file_buffer, engine='openpyxl') as writer:
+                    grupo.to_excel(writer, index=False, sheet_name="Ordenes")
+                file_buffer.seek(0)
+                nombre_archivo = f"RESP_{responsable.strip().replace(' ', '_')}.xlsx"
+                zip_file.writestr(nombre_archivo, file_buffer.read())
+        zip_buffer.seek(0)
+
+        # ---- Botón para descargar archivos por responsable ----
+        st.download_button(
+            label="📦 Descargar archivos por Responsable (ZIP)",
+            data=zip_buffer,
+            file_name="Archivos_por_Responsable.zip",
+            mime="application/zip"
         )
 
         st.info("💡 Puedes exportar la tabla visible a PDF usando Ctrl+P desde el navegador.")
