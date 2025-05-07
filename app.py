@@ -17,7 +17,6 @@ arch_precios = st.file_uploader("📂 Subir archivo PRECIOS", type=["xlsx"], key
 if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
 
     try:
-        # ---- Cargar datos principales ----
         df_ordenes = pd.read_excel(arch_ordenes)
         xl_stock = pd.ExcelFile(arch_stock)
 
@@ -49,10 +48,19 @@ if all([arch_ordenes, arch_stock, arch_estado, arch_responsable, arch_precios]):
         df_ordenes["LPROD"] = df_ordenes["LPROD"].astype(str).str.strip().str.upper()
         df_ordenes["VALOR"] = df_ordenes["LPROD"].map(mapa_precios)
 
-        # ---- Resumen por responsable ----
+        # ---- Resumen por responsable con TOTAL ----
         resumen = df_ordenes["RESP"].value_counts().reset_index()
         resumen.columns = ["RESPONSABLE", "Total líneas"]
-        resumen["Porcentaje"] = (resumen["Total líneas"] / len(df_ordenes) * 100).round(2).astype(str) + " %"
+        resumen["Porcentaje"] = (resumen["Total líneas"] / len(df_ordenes) * 100).round(2)
+
+        fila_total = pd.DataFrame({
+            "RESPONSABLE": ["TOTAL"],
+            "Total líneas": [resumen["Total líneas"].sum()],
+            "Porcentaje": [100.0]
+        })
+
+        resumen = pd.concat([resumen, fila_total], ignore_index=True)
+        resumen["Porcentaje"] = resumen["Porcentaje"].astype(str) + " %"
 
         st.subheader("📈 Resumen por Responsable")
         st.dataframe(resumen, use_container_width=True)
