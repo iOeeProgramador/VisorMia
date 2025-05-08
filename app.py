@@ -47,7 +47,7 @@ def mostrar_resumen_por_responsable(df):
 
         # Agregar columnas para los estados adicionales
         for estado in ESTADOS_EXTRA:
-            col_estado = df[df["ESTADO1"] == estado].groupby("RESP").size()
+            col_estado = df[df["ESTADO"] == estado].groupby("RESP").size()
             resumen[estado] = resumen["Responsable"].map(col_estado).fillna(0).astype(int)
 
         st.subheader("📊 Resumen por Responsable")
