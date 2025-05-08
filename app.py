@@ -36,6 +36,14 @@ def validar_columnas(df, nombre_archivo, columnas_necesarias):
         raise ValueError(f"Columnas faltantes en {nombre_archivo}: {', '.join(faltantes)}")
 
 
+def mostrar_resumen_por_responsable(df):
+    if "RESP" in df.columns:
+        resumen = df["RESP"].value_counts().reset_index()
+        resumen.columns = ["Responsable", "Total líneas"]
+        resumen["Porcentaje"] = (resumen["Total líneas"] / len(df) * 100).round(2).astype(str) + " %"
+        st.subheader("📊 Resumen por Responsable")
+        st.dataframe(resumen)
+
 if archivo_zip:
     try:
         with zipfile.ZipFile(archivo_zip) as z:
@@ -57,6 +65,15 @@ if archivo_zip:
                     archivos_excel[nombre_logico] = df
 
             st.success("✅ Archivos cargados y validados correctamente.")
+
+            # Mostrar resumen por responsable
+            df_ordenes = archivos_excel.get("Ordenes")
+            df_responsables = archivos_excel.get("Responsable")
+
+            if df_ordenes is not None and df_responsables is not None:
+                mapa_resp = df_responsables.set_index("HNAME")["RESP"].to_dict()
+                df_ordenes["RESP"] = df_ordenes["HNAME"].map(mapa_resp)
+                mostrar_resumen_por_responsable(df_ordenes)
 
     except BadZipFile:
         st.error("❌ El archivo subido no es un ZIP válido.")
