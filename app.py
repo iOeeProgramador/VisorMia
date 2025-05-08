@@ -159,3 +159,5 @@ if archivo_zip:
 
     with pd.ExcelWriter("DatosCombinados.xlsx", engine="openpyxl") as writer:
         df.to_excel(writer, index=False)
+
+# [Validación no insertada: no se encontró punto de inserción]
