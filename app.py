@@ -141,7 +141,13 @@ if archivo_zip:
 
 
     # --- Generación de DatosCombinados ---
-    stock = pd.read_excel(arch_stock, skiprows=2)
+    
+    try:
+        stock = pd.read_excel(arch_stock, skiprows=2)
+    except Exception as e:
+        st.error(f"❌ Error al procesar el archivo 'Stock.xlsx': {str(e)}. Asegúrate de que contiene datos válidos a partir de la fila 3.")
+        st.stop()
+
     ordenes["LPROD"] = ordenes["LPROD"].astype(str).str.strip()
     stock["Cod. Producto"] = stock["Cod. Producto"].astype(str).str.strip()
     precios["LPROD"] = precios["LPROD"].astype(str).str.strip()
