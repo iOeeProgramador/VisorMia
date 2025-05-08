@@ -137,3 +137,55 @@ if archivo_zip:
 
     except Exception as e:
         st.error(f"❌ Error al procesar el ZIP: {e}")
+
+
+
+    try:
+        ordenes_archivos = [f for f in archivos_zip if "orden" in f.name.lower()]
+        if not ordenes_archivos:
+            st.error("❌ No se encontró el archivo 'Ordenes.xlsx' dentro del ZIP.")
+            st.stop()
+        arch_ordenes = zipfile.ZipFile(archivo_zip).open(ordenes_archivos[0])
+        ordenes = pd.read_excel(arch_ordenes)
+    except Exception as e:
+        st.error(f"❌ Error al procesar 'Ordenes.xlsx': {str(e)}.")
+        st.stop()
+
+
+
+    try:
+        estado_archivos = [f for f in archivos_zip if "estado" in f.name.lower()]
+        if not estado_archivos:
+            st.error("❌ No se encontró el archivo 'Estado.xlsx' dentro del ZIP.")
+            st.stop()
+        arch_estado = zipfile.ZipFile(archivo_zip).open(estado_archivos[0])
+        estado = pd.read_excel(arch_estado)
+    except Exception as e:
+        st.error(f"❌ Error al procesar 'Estado.xlsx': {str(e)}.")
+        st.stop()
+
+
+
+    try:
+        precios_archivos = [f for f in archivos_zip if "precio" in f.name.lower()]
+        if not precios_archivos:
+            st.error("❌ No se encontró el archivo 'Precios.xlsx' dentro del ZIP.")
+            st.stop()
+        arch_precios = zipfile.ZipFile(archivo_zip).open(precios_archivos[0])
+        precios = pd.read_excel(arch_precios)
+    except Exception as e:
+        st.error(f"❌ Error al procesar 'Precios.xlsx': {str(e)}.")
+        st.stop()
+
+
+
+    try:
+        responsable_archivos = [f for f in archivos_zip if "respons" in f.name.lower()]
+        if not responsable_archivos:
+            st.error("❌ No se encontró el archivo 'Responsable.xlsx' dentro del ZIP.")
+            st.stop()
+        arch_responsable = zipfile.ZipFile(archivo_zip).open(responsable_archivos[0])
+        responsable = pd.read_excel(arch_responsable)
+    except Exception as e:
+        st.error(f"❌ Error al procesar 'Responsable.xlsx': {str(e)}.")
+        st.stop()
