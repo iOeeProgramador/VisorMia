@@ -137,3 +137,25 @@ if archivo_zip:
 
     except Exception as e:
         st.error(f"❌ Error al procesar el ZIP: {e}")
+
+
+
+    # --- Generación de DatosCombinados ---
+    stock = pd.read_excel(arch_stock, skiprows=2)
+    ordenes["LPROD"] = ordenes["LPROD"].astype(str).str.strip()
+    stock["Cod. Producto"] = stock["Cod. Producto"].astype(str).str.strip()
+    precios["LPROD"] = precios["LPROD"].astype(str).str.strip()
+
+    df = pd.merge(ordenes, stock, how="left", left_on="LPROD", right_on="Cod. Producto")
+    df["LORD_LLINE"] = df["LORD"].astype(str) + "-" + df["LLINE"].astype(str)
+    estado["LORD_LLINE"] = estado["LORD"].astype(str) + "-" + estado["LLINE"].astype(str)
+    df = pd.merge(df, estado.drop(columns=["LORD", "LLINE"]), on="LORD_LLINE", how="left")
+
+    df["LPROD_x"] = df["LPROD_x"].astype(str).str.strip()
+    precios["LPROD"] = precios["LPROD"].astype(str).str.strip()
+    df = pd.merge(df, precios, left_on="LPROD_x", right_on="LPROD", how="left")
+
+    df = pd.merge(df, responsable, on="HNAME", how="left")
+
+    with pd.ExcelWriter("DatosCombinados.xlsx", engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
