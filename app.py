@@ -22,25 +22,34 @@ COLUMNAS_REQUERIDAS = {
     "Responsable": ["HNAME"]
 }
 
-archivos_excel = {}
+ESTADOS_EXTRA = [
+    "B.O.", "CONFIRMACION EN 0", "CONTENEDOR R", "ENVIADO A RUTA 99", "FACTURACION PARCIAL",
+    "FACTURADA", "FACTURADO", "GESTIONAR", "INBOUND", "PACKING", "PICKING", "POR FACTURAR",
+    "PP EXTRAVIADO", "QUIEBRE", "REPLANIFICADO", "WMS"
+]
 
+archivos_excel = {}
 
 def normalizar_columnas(df):
     df.columns = df.columns.str.strip().str.upper().str.replace(" ", "")
     return df
-
 
 def validar_columnas(df, nombre_archivo, columnas_necesarias):
     faltantes = [col for col in columnas_necesarias if col.upper().replace(" ", "") not in df.columns]
     if faltantes:
         raise ValueError(f"Columnas faltantes en {nombre_archivo}: {', '.join(faltantes)}")
 
-
 def mostrar_resumen_por_responsable(df):
     if "RESP" in df.columns:
         resumen = df["RESP"].value_counts().reset_index()
         resumen.columns = ["Responsable", "Total líneas"]
         resumen["Porcentaje"] = (resumen["Total líneas"] / len(df) * 100).round(2).astype(str) + " %"
+
+        # Agregar columnas para los estados adicionales
+        for estado in ESTADOS_EXTRA:
+            col_estado = df[df["ESTADO1"] == estado].groupby("RESP").size()
+            resumen[estado] = resumen["Responsable"].map(col_estado).fillna(0).astype(int)
+
         st.subheader("📊 Resumen por Responsable")
         st.dataframe(resumen)
 
