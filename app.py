@@ -186,6 +186,20 @@ if archivo_zip:
             st.stop()
         arch_responsable = zipfile.ZipFile(archivo_zip).open(responsable_archivos[0])
         responsable = pd.read_excel(arch_responsable)
+
+
+def validar_columnas(df, nombre_archivo, columnas_necesarias):
+    faltantes = [col for col in columnas_necesarias if col not in df.columns]
+    if faltantes:
+        st.error(f"❌ El archivo '{{nombre_archivo}}' no contiene las columnas requeridas: {{faltantes}}")
+        st.stop()
+
+    validar_columnas(ordenes, "Ordenes", ["LPROD", "LORD", "LLINE", "HNAME"])
+    validar_columnas(stock, "Stock", ["Cod. Producto"])
+    validar_columnas(estado, "Estado", ["LORD", "LLINE"])
+    validar_columnas(precios, "Precios", ["LPROD"])
+    validar_columnas(responsable, "Responsable", ["HNAME"])
+
     except Exception as e:
         st.error(f"❌ Error al procesar 'Responsable.xlsx': {str(e)}.")
         st.stop()
