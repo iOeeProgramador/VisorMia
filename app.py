@@ -143,7 +143,18 @@ if archivo_zip:
     # --- Generación de DatosCombinados ---
     
     try:
-        stock = pd.read_excel(arch_stock, skiprows=2)
+        
+    try:
+        stock_archivos = [f for f in archivos_zip if "stock" in f.name.lower()]
+        if not stock_archivos:
+            st.error("❌ No se encontró ningún archivo relacionado con 'Stock' dentro del ZIP.")
+            st.stop()
+        arch_stock = zipfile.ZipFile(archivo_zip).open(stock_archivos[0])
+        stock = pd.read_excel(arch_stock, sheet_name=0, skiprows=2)
+    except Exception as e:
+        st.error(f"❌ Error al procesar 'Stock.xlsx': {str(e)}. Verifica que contiene una hoja válida desde la fila 3.")
+        st.stop()
+
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo 'Stock.xlsx': {str(e)}. Asegúrate de que contiene datos válidos a partir de la fila 3.")
         st.stop()
