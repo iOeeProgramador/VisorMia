@@ -1,74 +1,68 @@
-# VisorMiaOk_corregido.py
-
 import streamlit as st
 import pandas as pd
 import zipfile
 import io
 import datetime
-import base64
-from zipfile import ZipFile
-from io import BytesIO
+from datetime import datetime as dt
+from zipfile import BadZipFile
 
 st.set_page_config(layout="wide")
-st.markdown("## \U0001F4C1 VisorMia | " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+st.title("📁 VisorMia | " + dt.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-st.markdown("### \U0001F4E6 Carga automática desde archivo ZIP (5 Excel incluidos)")
+st.subheader("📦 Carga automática desde archivo ZIP (5 Excel incluidos)")
+st.caption("Sube el archivo .ZIP que contenga los 5 Excel")
 
-zip_file = st.file_uploader("Sube el archivo .ZIP que contenga los 5 Excel", type="zip")
+archivo_zip = st.file_uploader("Drag and drop file here", type="zip")
 
-if zip_file:
-    with zipfile.ZipFile(zip_file, "r") as archive:
-        filenames = archive.namelist()
+COLUMNAS_REQUERIDAS = {
+    "Ordenes": ["LPROD"],
+    "Stock": ["Cod. Producto"],
+    "Estado": ["LORD", "LLINE"],
+    "Precios": ["LPROD"],
+    "Responsable": ["HNAME"]
+}
 
-        required_files = ["Ordenes.xlsx", "Stock.xlsx", "Estado.xlsx", "Precios.xlsx", "Responsable.xlsx"]
-        if not all(req in filenames for req in required_files):
-            st.error("\u274C El ZIP no contiene todos los archivos requeridos.")
-        else:
-            def read_excel_from_zip(name, skip_rows=0):
-                with archive.open(name) as file:
-                    return pd.read_excel(file, skiprows=skip_rows)
+archivos_excel = {}
 
-            try:
-                ordenes = read_excel_from_zip("Ordenes.xlsx")
-                stock = read_excel_from_zip("Stock.xlsx", skip_rows=2)  # Eliminar filas 1 y 2
-                estado = read_excel_from_zip("Estado.xlsx")
-                precios = read_excel_from_zip("Precios.xlsx")
-                responsable = read_excel_from_zip("Responsable.xlsx")
 
-                # Fusionar todos
-                df = ordenes.copy()
-                df["Control-Dias"] = (pd.to_datetime(df["LRDTE"].astype(str), format="%Y%m%d") - pd.Timestamp.now().normalize()).dt.days
-                df = df.merge(stock, left_on="LPROD", right_on="Cod. Producto", how="left")
-                df = df.merge(estado, on=["LORD", "LLINE"], how="left")
-                df = df.merge(precios, on="LPROD", how="left")
-                df = df.merge(responsable, on="HNAME", how="left")
+def normalizar_columnas(df):
+    df.columns = df.columns.str.strip().str.upper().str.replace(" ", "")
+    return df
 
-                # Guardar archivo combinado
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-                    df.to_excel(writer, index=False, sheet_name="DatosCombinados")
-                output.seek(0)
 
-                st.download_button(
-                    label="\U0001F4C4 Descargar archivo combinado (DatosCombinados.xlsx)",
-                    data=output,
-                    file_name="DatosCombinados.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+def validar_columnas(df, nombre_archivo, columnas_necesarias):
+    faltantes = [col for col in columnas_necesarias if col.upper().replace(" ", "") not in df.columns]
+    if faltantes:
+        raise ValueError(f"Columnas faltantes en {nombre_archivo}: {', '.join(faltantes)}")
 
-                resumen = df["Resp"].value_counts().reset_index()
-                resumen.columns = ["Responsable", "Cantidad"]
-                total = resumen["Cantidad"].sum()
-                resumen["Porcentaje"] = (resumen["Cantidad"] / total * 100).round(2)
-                st.dataframe(resumen)
 
-                if st.button("Mostrar Datos Detallados"):
-                    mostrar_cols = [
-                        "Control-Dias", "HEDTE", "HROUT", "LORD", "LLINE", "LPROD", "LDESC", "HNAME",
-                        "Cod. Producto", "Ubicación", "Contenedor", "Zona", "Sitio", "pedido",
-                        "UNICO", "OBSERVACION", "Valor", "On Hand", "Resp"
-                    ]
-                    df_visible = df[mostrar_cols].copy()
-                    st.dataframe(df_visible, use_container_width=True)
-            except Exception as e:
-                st.error(f"\u274C Error al procesar el archivo: {str(e)}")
+if archivo_zip:
+    try:
+        with zipfile.ZipFile(archivo_zip) as z:
+            nombres_archivos = z.namelist()
+
+            for nombre_logico, requeridas in COLUMNAS_REQUERIDAS.items():
+                archivo_match = next((n for n in nombres_archivos if nombre_logico.lower() in n.lower()), None)
+                if not archivo_match:
+                    raise FileNotFoundError(f"No se encontró un archivo para: {nombre_logico}")
+
+                with z.open(archivo_match) as f:
+                    if nombre_logico == "Stock":
+                        df = pd.read_excel(f, skiprows=2)
+                    else:
+                        df = pd.read_excel(f)
+
+                    df = normalizar_columnas(df)
+                    validar_columnas(df, nombre_logico, requeridas)
+                    archivos_excel[nombre_logico] = df
+
+            st.success("✅ Archivos cargados y validados correctamente.")
+
+    except BadZipFile:
+        st.error("❌ El archivo subido no es un ZIP válido.")
+    except FileNotFoundError as fe:
+        st.error(f"❌ Error al procesar el ZIP: {str(fe)}")
+    except ValueError as ve:
+        st.error(f"❌ Error al procesar columnas: {str(ve)}")
+    except Exception as e:
+        st.error(f"❌ Error inesperado: {str(e)}")
