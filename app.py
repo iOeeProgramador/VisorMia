@@ -19,6 +19,11 @@ if uploaded_file is not None:
             df_ordenes = pd.read_excel(file_dict["ORDENES.xlsx"])
             df_ordenes.columns = [f"{col}_ORDENES" for col in df_ordenes.columns]
 
+            # Agregar columna CONTROL_DIAS
+            if "LRDTE_ORDENES" in df_ordenes.columns:
+                today = datetime.today()
+                df_ordenes.insert(0, "CONTROL_DIAS", df_ordenes["LRDTE_ORDENES"].apply(lambda x: (datetime.strptime(str(int(x)), "%Y%m%d") - today).days))
+
             # Guardar en Excel combinado
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
