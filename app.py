@@ -24,15 +24,31 @@ if uploaded_file is not None:
                 today = datetime.today()
                 df_ordenes.insert(0, "CONTROL_DIAS", df_ordenes["LRDTE_ORDENES"].apply(lambda x: (datetime.strptime(str(int(x)), "%Y%m%d") - today).days))
 
+            # Si existe INVENTARIO, combinar con ORDENES
+            if "INVENTARIO.xlsx" in file_dict:
+                df_inventario = pd.read_excel(file_dict["INVENTARIO.xlsx"])
+                df_inventario.columns = [f"{col}_INVENTARIO" for col in df_inventario.columns]
+
+                # Unir por LPROD_ORDENES y Cod. Producto_INVENTARIO
+                df_combinado = pd.merge(
+                    df_ordenes,
+                    df_inventario,
+                    left_on="LPROD_ORDENES",
+                    right_on="Cod. Producto_INVENTARIO",
+                    how="left"
+                )
+            else:
+                df_combinado = df_ordenes
+
             # Guardar en Excel combinado
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                df_ordenes.to_excel(writer, index=False, sheet_name='Datos')
+                df_combinado.to_excel(writer, index=False, sheet_name='Datos')
             output.seek(0)
 
             # Mostrar datos
             st.subheader("Vista previa de DatosCombinados.xlsx")
-            st.dataframe(df_ordenes, use_container_width=True)
+            st.dataframe(df_combinado, use_container_width=True)
 
             # Botón para descarga
             st.download_button(
