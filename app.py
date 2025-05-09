@@ -24,15 +24,18 @@ if uploaded_file is not None:
                 today = datetime.today()
                 df_ordenes.insert(0, "CONTROL_DIAS", df_ordenes["LRDTE_ORDENES"].apply(lambda x: (datetime.strptime(str(int(x)), "%Y%m%d") - today).days))
 
-            # Si existe INVENTARIO, combinar con ORDENES
+            # Si existe INVENTARIO, agregar columnas relacionadas sin duplicar filas
             if "INVENTARIO.xlsx" in file_dict:
                 df_inventario = pd.read_excel(file_dict["INVENTARIO.xlsx"])
                 df_inventario.columns = [f"{col}_INVENTARIO" for col in df_inventario.columns]
 
-                # Unir por LPROD_ORDENES y Cod. Producto_INVENTARIO
+                # Eliminar duplicados en INVENTARIO por Cod. Producto
+                df_inventario_unique = df_inventario.drop_duplicates(subset=["Cod. Producto_INVENTARIO"])
+
+                # Hacer merge manteniendo estructura de ORDENES
                 df_combinado = pd.merge(
                     df_ordenes,
-                    df_inventario,
+                    df_inventario_unique,
                     left_on="LPROD_ORDENES",
                     right_on="Cod. Producto_INVENTARIO",
                     how="left"
