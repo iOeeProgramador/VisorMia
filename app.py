@@ -2,93 +2,40 @@ import streamlit as st
 import pandas as pd
 import zipfile
 import io
-import datetime
-from datetime import datetime as dt
-from zipfile import BadZipFile
+from datetime import datetime
 
 st.set_page_config(layout="wide")
-st.title("📁 VisorMia | " + dt.now().strftime("%Y-%m-%d %H:%M:%S"))
+st.title("Procesador de archivos Excel desde ZIP")
 
-st.subheader("📦 Carga automática desde archivo ZIP (5 Excel incluidos)")
-st.caption("Sube el archivo .ZIP que contenga los 5 Excel")
+uploaded_file = st.file_uploader("Carga tu archivo ZIP con los libros de Excel", type="zip")
 
-archivo_zip = st.file_uploader("Drag and drop file here", type="zip")
+if uploaded_file is not None:
+    with zipfile.ZipFile(uploaded_file) as z:
+        expected_files = ["ORDENES.xlsx", "INVENTARIO.xlsx", "ESTADO.xlsx", "PRECIOS.xlsx", "GESTION.xlsx"]
+        file_dict = {name: z.open(name) for name in expected_files if name in z.namelist()}
 
-COLUMNAS_REQUERIDAS = {
-    "Ordenes": ["LPROD"],
-    "Stock": ["Cod. Producto"],
-    "Estado": ["LORD", "LLINE"],
-    "Precios": ["LPROD"],
-    "Responsable": ["HNAME"]
-}
+        if "ORDENES.xlsx" in file_dict:
+            # Cargar ORDENES y renombrar columnas
+            df_ordenes = pd.read_excel(file_dict["ORDENES.xlsx"])
+            df_ordenes.columns = [f"{col}_ORDENES" for col in df_ordenes.columns]
 
-ESTADOS_EXTRA = [
-    "B.O.", "CONFIRMACION EN 0", "CONTENEDOR R", "ENVIADO A RUTA 99", "FACTURACION PARCIAL",
-    "FACTURADA", "FACTURADO", "GESTIONAR", "INBOUND", "PACKING", "PICKING", "POR FACTURAR",
-    "PP EXTRAVIADO", "QUIEBRE", "REPLANIFICADO", "WMS"
-]
+            # Guardar en Excel combinado
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df_ordenes.to_excel(writer, index=False, sheet_name='Datos')
+            output.seek(0)
 
-archivos_excel = {}
+            # Mostrar datos
+            st.subheader("Vista previa de DatosCombinados.xlsx")
+            st.dataframe(df_ordenes, use_container_width=True)
 
-def normalizar_columnas(df):
-    df.columns = df.columns.str.strip().str.upper().str.replace(" ", "")
-    return df
+            # Botón para descarga
+            st.download_button(
+                label="Salir y descargar DatosCombinados.xlsx",
+                data=output,
+                file_name="DatosCombinados.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
-def validar_columnas(df, nombre_archivo, columnas_necesarias):
-    faltantes = [col for col in columnas_necesarias if col.upper().replace(" ", "") not in df.columns]
-    if faltantes:
-        raise ValueError(f"Columnas faltantes en {nombre_archivo}: {', '.join(faltantes)}")
-
-def mostrar_resumen_por_responsable(df):
-    if "RESP" in df.columns:
-        resumen = df["RESP"].value_counts().reset_index()
-        resumen.columns = ["Responsable", "Total líneas"]
-        resumen["Porcentaje"] = (resumen["Total líneas"] / len(df) * 100).round(2).astype(str) + " %"
-
-        # Agregar columnas para los estados adicionales
-        for estado in ESTADOS_EXTRA:
-            col_estado = df[df["ESTADO"] == estado].groupby("RESP").size()
-            resumen[estado] = resumen["Responsable"].map(col_estado).fillna(0).astype(int)
-
-        st.subheader("📊 Resumen por Responsable")
-        st.dataframe(resumen)
-
-if archivo_zip:
-    try:
-        with zipfile.ZipFile(archivo_zip) as z:
-            nombres_archivos = z.namelist()
-
-            for nombre_logico, requeridas in COLUMNAS_REQUERIDAS.items():
-                archivo_match = next((n for n in nombres_archivos if nombre_logico.lower() in n.lower()), None)
-                if not archivo_match:
-                    raise FileNotFoundError(f"No se encontró un archivo para: {nombre_logico}")
-
-                with z.open(archivo_match) as f:
-                    if nombre_logico == "Stock":
-                        df = pd.read_excel(f, skiprows=2)
-                    else:
-                        df = pd.read_excel(f)
-
-                    df = normalizar_columnas(df)
-                    validar_columnas(df, nombre_logico, requeridas)
-                    archivos_excel[nombre_logico] = df
-
-            st.success("✅ Archivos cargados y validados correctamente.")
-
-            # Mostrar resumen por responsable
-            df_ordenes = archivos_excel.get("Ordenes")
-            df_responsables = archivos_excel.get("Responsable")
-
-            if df_ordenes is not None and df_responsables is not None:
-                mapa_resp = df_responsables.set_index("HNAME")["RESP"].to_dict()
-                df_ordenes["RESP"] = df_ordenes["HNAME"].map(mapa_resp)
-                mostrar_resumen_por_responsable(df_ordenes)
-
-    except BadZipFile:
-        st.error("❌ El archivo subido no es un ZIP válido.")
-    except FileNotFoundError as fe:
-        st.error(f"❌ Error al procesar el ZIP: {str(fe)}")
-    except ValueError as ve:
-        st.error(f"❌ Error al procesar columnas: {str(ve)}")
-    except Exception as e:
-        st.error(f"❌ Error inesperado: {str(e)}")
+        else:
+            st.error("El archivo ORDENES.xlsx no fue encontrado en el ZIP.")
