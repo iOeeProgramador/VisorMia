@@ -57,7 +57,6 @@ if uploaded_file is not None:
                 df_gestion_unique = df_gestion.drop_duplicates(subset=["HNAME_GESTION"])
                 df_combinado = pd.merge(df_combinado, df_gestion_unique, left_on="HNAME_ORDENES", right_on="HNAME_GESTION", how="left")
 
-            # Diccionario de colores por sufijo
             color_dict = {
                 "ORDENES": "#e6f7ff",
                 "INVENTARIO": "#e6ffe6",
@@ -93,25 +92,26 @@ if uploaded_file is not None:
 
             elif menu == "Gestión de Columnas":
                 st.subheader("Gestión de Columnas - Mostrar/Ocultar")
-                todas_las_columnas = df_combinado.columns.tolist()
-                columnas_visibles = st.multiselect("Selecciona las columnas a mostrar (conservarán su color)", options=todas_las_columnas, default=todas_las_columnas)
+                columnas_control = {}
 
-                def get_col_color(col):
+                for col in df_combinado.columns:
+                    color = ""
                     for key in color_dict:
                         if col.endswith(f"_{key}") or col == key:
-                            return color_dict[key]
-                    return "#ffffff"
+                            color = color_dict[key]
+                            break
+                    estado = st.radio(f"{col}", ["VER", "OCULTAR"], horizontal=True)
+                    columnas_control[col] = (estado == "VER", color)
 
-                styled_df = df_combinado.copy()
-                styled_df = styled_df[columnas_visibles]
+                columnas_a_mostrar = [col for col, (ver, _) in columnas_control.items() if ver]
+                colores = {col: color for col, (ver, color) in columnas_control.items() if ver}
 
-                def highlight_columns():
-                    return pd.DataFrame(
-                        [[f"background-color: {get_col_color(col)}" for col in styled_df.columns]],
-                        columns=styled_df.columns
-                    )
+                styled_df = df_combinado[columnas_a_mostrar].copy()
 
-                st.dataframe(styled_df.style.apply(highlight_columns, axis=0), use_container_width=True)
+                def highlight_cols(x):
+                    return [f"background-color: {colores.get(c, '#ffffff')}" for c in x.index]
+
+                st.dataframe(styled_df.style.apply(highlight_cols, axis=1), use_container_width=True)
 
         else:
             st.error("El archivo ORDENES.xlsx no fue encontrado en el ZIP.")
