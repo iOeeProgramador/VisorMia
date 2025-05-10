@@ -5,7 +5,7 @@ import io
 from datetime import datetime
 
 st.set_page_config(layout="wide")
-st.title("Procesador de archivos Excel desde ZIP")
+st.title("Procesador de archivos MIA")
 
 uploaded_file = st.file_uploader("Carga tu archivo ZIP con los libros de Excel", type="zip")
 
@@ -83,6 +83,23 @@ if uploaded_file is not None:
                     df_precios_unique,
                     left_on="LPROD_ORDENES",
                     right_on="LPROD_PRECIOS",
+                    how="left"
+                )
+
+            # Si existe GESTION, agregar columnas relacionadas sin duplicar filas
+            if "GESTION.xlsx" in file_dict:
+                df_gestion = pd.read_excel(file_dict["GESTION.xlsx"])
+                df_gestion.columns = [f"{col}_GESTION" for col in df_gestion.columns]
+
+                # Eliminar duplicados por HNAME
+                df_gestion_unique = df_gestion.drop_duplicates(subset=["HNAME_GESTION"])
+
+                # Unir manteniendo estructura de ORDENES
+                df_combinado = pd.merge(
+                    df_combinado,
+                    df_gestion_unique,
+                    left_on="HNAME_ORDENES",
+                    right_on="HNAME_GESTION",
                     how="left"
                 )
 
