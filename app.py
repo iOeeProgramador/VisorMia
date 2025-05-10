@@ -61,6 +61,13 @@ if uploaded_file is not None:
                 st.subheader(f"Resumen Total de Líneas por Responsable (Total: {total})")
                 st.dataframe(resumen, use_container_width=True)
 
+            if "ESTADO_ESTADO" in df_combinado.columns:
+                resumen_estado = df_combinado["ESTADO_ESTADO"].value_counts(dropna=False).reset_index()
+                resumen_estado.columns = ["Estado", "Total"]
+                resumen_estado["Estado"] = resumen_estado["Estado"].fillna("SIN ESTADO")
+                st.subheader("Resumen Total de Líneas por Tipo de Estado")
+                st.dataframe(resumen_estado, use_container_width=True)
+
             st.subheader("Vista previa de DatosCombinados.xlsx")
             st.dataframe(df_combinado, use_container_width=True)
 
