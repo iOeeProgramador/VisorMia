@@ -91,8 +91,8 @@ if uploaded_file is not None:
                 )
 
             # Mostrar resumen líneas vs responsables
-            if "HNAME_ORDENES" in df_combinado.columns:
-                resumen = df_combinado.groupby("HNAME_ORDENES").size().reset_index(name="Total Líneas")
+            if "RESPONSABLE_GESTION" in df_combinado.columns:
+                resumen = df_combinado.groupby("RESPONSABLE_GESTION").size().reset_index(name="Total Líneas")
                 st.subheader("Resumen Total de Líneas por Responsable")
                 st.dataframe(resumen, use_container_width=True)
 
