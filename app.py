@@ -29,10 +29,8 @@ if uploaded_file is not None:
                 df_inventario = pd.read_excel(file_dict["INVENTARIO.xlsx"])
                 df_inventario.columns = [f"{col}_INVENTARIO" for col in df_inventario.columns]
 
-                # Eliminar duplicados en INVENTARIO por Cod. Producto
                 df_inventario_unique = df_inventario.drop_duplicates(subset=["Cod. Producto_INVENTARIO"])
 
-                # Hacer merge manteniendo estructura de ORDENES
                 df_combinado = pd.merge(
                     df_ordenes,
                     df_inventario_unique,
@@ -43,19 +41,15 @@ if uploaded_file is not None:
             else:
                 df_combinado = df_ordenes
 
-            # Si existe ESTADO, agregar columnas relacionadas sin duplicar filas
             if "ESTADO.xlsx" in file_dict:
                 df_estado = pd.read_excel(file_dict["ESTADO.xlsx"])
                 df_estado.columns = [f"{col}_ESTADO" for col in df_estado.columns]
 
-                # Crear columnas de clave de combinación
                 df_combinado["KEY_ORDENES"] = df_combinado["LORD_ORDENES"].astype(str) + df_combinado["LLINE_ORDENES"].astype(str)
                 df_estado["KEY_ESTADO"] = df_estado["LORD_ESTADO"].astype(str) + df_estado["LLINE_ESTADO"].astype(str)
 
-                # Eliminar duplicados en ESTADO por clave
                 df_estado_unique = df_estado.drop_duplicates(subset=["KEY_ESTADO"])
 
-                # Unir manteniendo las filas de ORDENES
                 df_combinado = pd.merge(
                     df_combinado,
                     df_estado_unique,
@@ -64,20 +58,16 @@ if uploaded_file is not None:
                     how="left"
                 )
 
-            # Si existe PRECIOS, agregar columnas relacionadas sin duplicar filas
             if "PRECIOS.xlsx" in file_dict:
                 df_precios = pd.read_excel(file_dict["PRECIOS.xlsx"])
                 df_precios.columns = [f"{col}_PRECIOS" for col in df_precios.columns]
 
-                # Eliminar duplicados en PRECIOS por LPROD
                 df_precios_unique = df_precios.drop_duplicates(subset=["LPROD_PRECIOS"])
 
-                # Convertir columnas VALOR y On Hand a enteros sin decimales si existen
                 for col in ["VALOR_PRECIOS", "On Hand_PRECIOS"]:
                     if col in df_precios_unique.columns:
                         df_precios_unique[col] = pd.to_numeric(df_precios_unique[col], errors='coerce').fillna(0).astype(int)
 
-                # Hacer merge manteniendo estructura de ORDENES
                 df_combinado = pd.merge(
                     df_combinado,
                     df_precios_unique,
@@ -86,15 +76,12 @@ if uploaded_file is not None:
                     how="left"
                 )
 
-            # Si existe GESTION, agregar columnas relacionadas sin duplicar filas
             if "GESTION.xlsx" in file_dict:
                 df_gestion = pd.read_excel(file_dict["GESTION.xlsx"])
                 df_gestion.columns = [f"{col}_GESTION" for col in df_gestion.columns]
 
-                # Eliminar duplicados por HNAME
                 df_gestion_unique = df_gestion.drop_duplicates(subset=["HNAME_GESTION"])
 
-                # Unir manteniendo estructura de ORDENES
                 df_combinado = pd.merge(
                     df_combinado,
                     df_gestion_unique,
@@ -103,17 +90,21 @@ if uploaded_file is not None:
                     how="left"
                 )
 
+            # Mostrar resumen líneas vs responsables
+            if "HNAME_ORDENES" in df_combinado.columns:
+                resumen = df_combinado.groupby("HNAME_ORDENES").size().reset_index(name="Total Líneas")
+                st.subheader("Resumen Total de Líneas por Responsable")
+                st.dataframe(resumen, use_container_width=True)
+
             # Guardar en Excel combinado
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 df_combinado.to_excel(writer, index=False, sheet_name='Datos')
             output.seek(0)
 
-            # Mostrar datos
             st.subheader("Vista previa de DatosCombinados.xlsx")
             st.dataframe(df_combinado, use_container_width=True)
 
-            # Botón para descarga
             st.download_button(
                 label="Salir y descargar DatosCombinados.xlsx",
                 data=output,
