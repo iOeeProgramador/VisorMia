@@ -90,9 +90,10 @@ if uploaded_file is not None:
                     how="left"
                 )
 
-            # Mostrar resumen líneas vs responsables
+            # Mostrar resumen líneas vs responsables, incluyendo vacíos
             if "RESPONSABLE_GESTION" in df_combinado.columns:
-                resumen = df_combinado.groupby("RESPONSABLE_GESTION").size().reset_index(name="Total Líneas")
+                resumen = df_combinado.groupby("RESPONSABLE_GESTION", dropna=False).size().reset_index(name="Total Líneas")
+                resumen["RESPONSABLE_GESTION"] = resumen["RESPONSABLE_GESTION"].fillna("SIN RESPONSABLE")
                 resumen = resumen.sort_values(by="Total Líneas", ascending=False)
                 total = resumen["Total Líneas"].sum()
                 st.subheader(f"Resumen Total de Líneas por Responsable (Total: {total})")
