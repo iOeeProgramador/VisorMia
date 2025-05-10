@@ -43,6 +43,27 @@ if uploaded_file is not None:
             else:
                 df_combinado = df_ordenes
 
+            # Si existe ESTADO, agregar columnas relacionadas sin duplicar filas
+            if "ESTADO.xlsx" in file_dict:
+                df_estado = pd.read_excel(file_dict["ESTADO.xlsx"])
+                df_estado.columns = [f"{col}_ESTADO" for col in df_estado.columns]
+
+                # Crear columnas de clave de combinación
+                df_combinado["KEY_ORDENES"] = df_combinado["LORD_ORDENES"].astype(str) + df_combinado["LLINE_ORDENES"].astype(str)
+                df_estado["KEY_ESTADO"] = df_estado["LORD_ESTADO"].astype(str) + df_estado["LLINE_ESTADO"].astype(str)
+
+                # Eliminar duplicados en ESTADO por clave
+                df_estado_unique = df_estado.drop_duplicates(subset=["KEY_ESTADO"])
+
+                # Unir manteniendo las filas de ORDENES
+                df_combinado = pd.merge(
+                    df_combinado,
+                    df_estado_unique,
+                    left_on="KEY_ORDENES",
+                    right_on="KEY_ESTADO",
+                    how="left"
+                )
+
             # Guardar en Excel combinado
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
