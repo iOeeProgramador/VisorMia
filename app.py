@@ -97,7 +97,6 @@ if uploaded_file is not None:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-            # Exportar archivos por responsable con columnas específicas
             columnas_exportar = [
                 "CONTROL_DIAS", "CNME_ORDENES", "HROUT_ORDENES", "HSTAT_ORDENES", "LODTE_ORDENES", "LRDTE_ORDENES",
                 "LORD_ORDENES", "HCPO_ORDENES", "LLINE_ORDENES", "LSTAT_ORDENES", "LPROD_ORDENES", "LDESC_ORDENES",
@@ -112,6 +111,11 @@ if uploaded_file is not None:
                 with zipfile.ZipFile(zip_buffer, "w") as zip_file:
                     for responsable in df_combinado["RESPONSABLE_GESTION"].dropna().unique():
                         df_responsable = df_combinado[df_combinado["RESPONSABLE_GESTION"] == responsable][columnas_exportar].copy()
+                        df_responsable["VALOR_TOTAL"] = df_responsable.apply(
+                            lambda row: row["LQORD_ORDENES"] * row["VALOR_PRECIOS"]
+                            if pd.notna(row["LQORD_ORDENES"]) and pd.notna(row["VALOR_PRECIOS"]) else "",
+                            axis=1
+                        )
                         temp_buffer = io.BytesIO()
                         with pd.ExcelWriter(temp_buffer, engine="xlsxwriter") as writer:
                             df_responsable.to_excel(writer, index=False, sheet_name="Datos")
