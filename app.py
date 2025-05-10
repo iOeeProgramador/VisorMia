@@ -64,6 +64,28 @@ if uploaded_file is not None:
                     how="left"
                 )
 
+            # Si existe PRECIOS, agregar columnas relacionadas sin duplicar filas
+            if "PRECIOS.xlsx" in file_dict:
+                df_precios = pd.read_excel(file_dict["PRECIOS.xlsx"])
+                df_precios.columns = [f"{col}_PRECIOS" for col in df_precios.columns]
+
+                # Eliminar duplicados en PRECIOS por LPROD
+                df_precios_unique = df_precios.drop_duplicates(subset=["LPROD_PRECIOS"])
+
+                # Convertir columnas VALOR y On Hand a enteros sin decimales si existen
+                for col in ["VALOR_PRECIOS", "On Hand_PRECIOS"]:
+                    if col in df_precios_unique.columns:
+                        df_precios_unique[col] = pd.to_numeric(df_precios_unique[col], errors='coerce').fillna(0).astype(int)
+
+                # Hacer merge manteniendo estructura de ORDENES
+                df_combinado = pd.merge(
+                    df_combinado,
+                    df_precios_unique,
+                    left_on="LPROD_ORDENES",
+                    right_on="LPROD_PRECIOS",
+                    how="left"
+                )
+
             # Guardar en Excel combinado
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
