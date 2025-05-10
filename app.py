@@ -3,13 +3,9 @@ import pandas as pd
 import zipfile
 import io
 from datetime import datetime
-import streamlit.components.v1 as components
 
 st.set_page_config(layout="wide")
 st.title("Procesador de archivos MIA")
-
-# Control de navegación entre páginas
-menu = st.sidebar.selectbox("Navegación", ["Resumen y Datos", "Gestión de Columnas"])
 
 uploaded_file = st.file_uploader("Carga tu archivo ZIP con los libros de Excel", type="zip")
 
@@ -57,61 +53,28 @@ if uploaded_file is not None:
                 df_gestion_unique = df_gestion.drop_duplicates(subset=["HNAME_GESTION"])
                 df_combinado = pd.merge(df_combinado, df_gestion_unique, left_on="HNAME_ORDENES", right_on="HNAME_GESTION", how="left")
 
-            color_dict = {
-                "ORDENES": "#e6f7ff",
-                "INVENTARIO": "#e6ffe6",
-                "ESTADO": "#fff5e6",
-                "PRECIOS": "#ffe6f0",
-                "GESTION": "#f2e6ff",
-                "CONTROL_DIAS": "#f9f9f9"
-            }
+            if "RESPONSABLE_GESTION" in df_combinado.columns:
+                resumen = df_combinado.groupby("RESPONSABLE_GESTION", dropna=False).size().reset_index(name="Total Líneas")
+                resumen["RESPONSABLE_GESTION"] = resumen["RESPONSABLE_GESTION"].fillna("SIN RESPONSABLE")
+                resumen = resumen.sort_values(by="Total Líneas", ascending=False)
+                total = resumen["Total Líneas"].sum()
+                st.subheader(f"Resumen Total de Líneas por Responsable (Total: {total})")
+                st.dataframe(resumen, use_container_width=True)
 
-            if menu == "Resumen y Datos":
-                if "RESPONSABLE_GESTION" in df_combinado.columns:
-                    resumen = df_combinado.groupby("RESPONSABLE_GESTION", dropna=False).size().reset_index(name="Total Líneas")
-                    resumen["RESPONSABLE_GESTION"] = resumen["RESPONSABLE_GESTION"].fillna("SIN RESPONSABLE")
-                    resumen = resumen.sort_values(by="Total Líneas", ascending=False)
-                    total = resumen["Total Líneas"].sum()
-                    st.subheader(f"Resumen Total de Líneas por Responsable (Total: {total})")
-                    st.dataframe(resumen, use_container_width=True)
+            st.subheader("Vista previa de DatosCombinados.xlsx")
+            st.dataframe(df_combinado, use_container_width=True)
 
-                st.subheader("Vista previa de DatosCombinados.xlsx")
-                st.dataframe(df_combinado, use_container_width=True)
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df_combinado.to_excel(writer, index=False, sheet_name='Datos')
+            output.seek(0)
 
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_combinado.to_excel(writer, index=False, sheet_name='Datos')
-                output.seek(0)
-
-                st.download_button(
-                    label="Salir y descargar DatosCombinados.xlsx",
-                    data=output,
-                    file_name="DatosCombinados.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-
-            elif menu == "Gestión de Columnas":
-                st.subheader("Gestión de Columnas - Mostrar/Ocultar")
-                columnas_control = {}
-
-                for col in df_combinado.columns:
-                    color = ""
-                    for key in color_dict:
-                        if col.endswith(f"_{key}") or col == key:
-                            color = color_dict[key]
-                            break
-                    estado = st.radio(f"{col}", ["VER", "OCULTAR"], horizontal=True)
-                    columnas_control[col] = (estado == "VER", color)
-
-                columnas_a_mostrar = [col for col, (ver, _) in columnas_control.items() if ver]
-                colores = {col: color for col, (ver, color) in columnas_control.items() if ver}
-
-                styled_df = df_combinado[columnas_a_mostrar].copy()
-
-                def highlight_cols(x):
-                    return [f"background-color: {colores.get(c, '#ffffff')}" for c in x.index]
-
-                st.dataframe(styled_df.style.apply(highlight_cols, axis=1), use_container_width=True)
+            st.download_button(
+                label="Salir y descargar DatosCombinados.xlsx",
+                data=output,
+                file_name="DatosCombinados.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
         else:
             st.error("El archivo ORDENES.xlsx no fue encontrado en el ZIP.")
