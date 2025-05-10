@@ -68,6 +68,27 @@ if uploaded_file is not None:
                 st.subheader("Resumen Total de Líneas por Tipo de Estado")
                 st.dataframe(resumen_estado, use_container_width=True)
 
+                if "RESPONSABLE_GESTION" in df_combinado.columns:
+                    resumen_estado_resp = df_combinado.groupby(["RESPONSABLE_GESTION", "ESTADO_ESTADO"], dropna=False).size().reset_index(name="Total")
+                    resumen_estado_resp["RESPONSABLE_GESTION"] = resumen_estado_resp["RESPONSABLE_GESTION"].fillna("SIN RESPONSABLE")
+                    resumen_estado_resp["ESTADO_ESTADO"] = resumen_estado_resp["ESTADO_ESTADO"].fillna("SIN ESTADO")
+                    pivot_estado = resumen_estado_resp.pivot(index="RESPONSABLE_GESTION", columns="ESTADO_ESTADO", values="Total").fillna(0).astype(int).reset_index()
+
+                    st.subheader("Resumen de Tipos de Estado por Responsable")
+                    st.dataframe(pivot_estado, use_container_width=True)
+
+                    resumen_estado_bytes = io.BytesIO()
+                    with pd.ExcelWriter(resumen_estado_bytes, engine="xlsxwriter") as writer:
+                        pivot_estado.to_excel(writer, index=False, sheet_name="Resumen por Responsable")
+                    resumen_estado_bytes.seek(0)
+
+                    st.download_button(
+                        label="Descargar resumen por Responsable",
+                        data=resumen_estado_bytes,
+                        file_name="Resumen_Estado_Por_Responsable.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+
             st.subheader("Vista previa de DatosCombinados.xlsx")
             st.dataframe(df_combinado, use_container_width=True)
 
