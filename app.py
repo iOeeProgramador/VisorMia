@@ -97,5 +97,33 @@ if uploaded_file is not None:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
+            # Exportar archivos por responsable con columnas específicas
+            columnas_exportar = [
+                "CONTROL_DIAS", "CNME_ORDENES", "HROUT_ORDENES", "HSTAT_ORDENES", "LODTE_ORDENES", "LRDTE_ORDENES",
+                "LORD_ORDENES", "HCPO_ORDENES", "LLINE_ORDENES", "LSTAT_ORDENES", "LPROD_ORDENES", "LDESC_ORDENES",
+                "LQORD_ORDENES", "LQALL_ORDENES", "LQSHP_ORDENES", "HNAME_ORDENES", "Faltan_ORDENES", "Stock 10_ORDENES",
+                "Ubicación_INVENTARIO", "Contenedor_INVENTARIO", "Cantidad_INVENTARIO", "pedido_INVENTARIO",
+                "ESTADO_ESTADO", "OBSERVACION_ESTADO", "VALOR_PRECIOS", "On Hand_PRECIOS"
+            ]
+
+            if "RESPONSABLE_GESTION" in df_combinado.columns:
+                st.subheader("Exportar libros individuales por Responsable")
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+                    for responsable in df_combinado["RESPONSABLE_GESTION"].dropna().unique():
+                        df_responsable = df_combinado[df_combinado["RESPONSABLE_GESTION"] == responsable][columnas_exportar].copy()
+                        temp_buffer = io.BytesIO()
+                        with pd.ExcelWriter(temp_buffer, engine="xlsxwriter") as writer:
+                            df_responsable.to_excel(writer, index=False, sheet_name="Datos")
+                        temp_buffer.seek(0)
+                        zip_file.writestr(f"{responsable}.xlsx", temp_buffer.read())
+                zip_buffer.seek(0)
+                st.download_button(
+                    label="Descargar todos los libros por Responsable (ZIP)",
+                    data=zip_buffer,
+                    file_name="Exportacion_Responsables.zip",
+                    mime="application/zip"
+                )
+
         else:
             st.error("El archivo ORDENES.xlsx no fue encontrado en el ZIP.")
