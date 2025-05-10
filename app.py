@@ -69,7 +69,23 @@ if uploaded_file is not None:
                 st.dataframe(resumen_estado, use_container_width=True)
 
             st.subheader("Vista previa de DatosCombinados.xlsx")
-            st.dataframe(df_combinado, use_container_width=True)
+
+            color_dict = {
+                "ORDENES": "background-color: #cceeff",
+                "INVENTARIO": "background-color: #e6ccb3",
+                "ESTADO": "background-color: #ffffcc",
+                "PRECIOS": "background-color: #ffcccc",
+                "GESTION": "background-color: #ccffcc",
+                "CONTROL_DIAS": "background-color: #f2f2f2"
+            }
+
+            def color_columns(x):
+                return [
+                    color_dict.get(col.split("_")[-1], "") if "_" in col else color_dict.get(col, "")
+                    for col in x.columns
+                ]
+
+            st.dataframe(df_combinado.style.apply(lambda x: color_columns(df_combinado), axis=0), use_container_width=True)
 
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
