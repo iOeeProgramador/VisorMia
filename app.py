@@ -93,7 +93,9 @@ if uploaded_file is not None:
             # Mostrar resumen líneas vs responsables
             if "RESPONSABLE_GESTION" in df_combinado.columns:
                 resumen = df_combinado.groupby("RESPONSABLE_GESTION").size().reset_index(name="Total Líneas")
-                st.subheader("Resumen Total de Líneas por Responsable")
+                resumen = resumen.sort_values(by="Total Líneas", ascending=False)
+                total = resumen["Total Líneas"].sum()
+                st.subheader(f"Resumen Total de Líneas por Responsable (Total: {total})")
                 st.dataframe(resumen, use_container_width=True)
 
             # Guardar en Excel combinado
